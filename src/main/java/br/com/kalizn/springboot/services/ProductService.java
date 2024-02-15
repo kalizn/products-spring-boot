@@ -9,14 +9,14 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestBody;
 
 import br.com.kalizn.springboot.controllers.ProductController;
 import br.com.kalizn.springboot.dto.ProductRecordDto;
 import br.com.kalizn.springboot.models.ProductModel;
+import br.com.kalizn.springboot.models.ProductStatus;
+import br.com.kalizn.springboot.models.ProductStatusUpdateBody;
 import br.com.kalizn.springboot.repositories.ProductRepository;
-import jakarta.validation.Valid;
+import br.com.kalizn.springboot.utils.BadRequestException;
 
 import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.linkTo;
 import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.methodOn;
@@ -40,7 +40,7 @@ public class ProductService {
 	}
 
     // GET ONE PRODUCT BY ID
-    public ResponseEntity<Object> getOneProduct(@PathVariable(value="id") UUID id){
+    public ResponseEntity<Object> getOneProduct(UUID id){
 		Optional<ProductModel> productO = productRepository.findById(id);
 		if(productO.isEmpty()) {
 			return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Product not found.");
@@ -50,14 +50,14 @@ public class ProductService {
 	}
 
     // SAVE A NEW PRODUCT
-    public ResponseEntity<ProductModel> saveProduct(@RequestBody @Valid ProductRecordDto productRecordDto) {
+    public ResponseEntity<ProductModel> saveProduct(ProductRecordDto productRecordDto) {
 		var productModel = new ProductModel();
 		BeanUtils.copyProperties(productRecordDto, productModel);
 		return ResponseEntity.status(HttpStatus.CREATED).body(productRepository.save(productModel));
 	}
 
     // DELETE A PRODUCT
-    public ResponseEntity<Object> deleteProduct(@PathVariable(value="id") UUID id) {
+    public ResponseEntity<Object> deleteProduct(UUID id) {
 		Optional<ProductModel> productO = productRepository.findById(id);
 		if(productO.isEmpty()) {
 			return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Product not found.");
@@ -67,8 +67,7 @@ public class ProductService {
 	}
 
     // UPDATE A PRODUCT
-    public ResponseEntity<Object> updateProduct(@PathVariable(value="id") UUID id,
-													  @RequestBody @Valid ProductRecordDto productRecordDto) {
+    public ResponseEntity<Object> updateProduct(UUID id, ProductRecordDto productRecordDto) {
 		Optional<ProductModel> productO = productRepository.findById(id);
 		if(productO.isEmpty()) {
 			return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Product not found.");
@@ -77,4 +76,27 @@ public class ProductService {
 		BeanUtils.copyProperties(productRecordDto, productModel);
 		return ResponseEntity.status(HttpStatus.OK).body(productRepository.save(productModel));
 	}
+
+    // UPDATE A PRODUCT'S STATUS
+    public ResponseEntity<Object> updateStatus(UUID id, ProductStatusUpdateBody newStatus) {
+        Optional<ProductModel> productO = productRepository.findById(id);
+
+		if(productO.isEmpty()) {
+			return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Product not found.");
+		}
+
+        ProductModel product = productO.get();
+
+        if (product.getStatus().equals(ProductStatus.ACTIVE)) {
+            throw new BadRequestException("Can't change status to INACTIVE");
+        }
+
+        if (product.getStatus().equals(ProductStatus.INACTVE)) {
+            throw new BadRequestException("Can't change status ACTIVE");
+        }
+
+        product.setStatus(newStatus.getStatus());
+
+        return ResponseEntity.status(HttpStatus.OK).body("Product status updated successfully.");
+    }
 }
